@@ -333,6 +333,7 @@ export default function Fruitful() {
   const [undo, setUndo] = useState(null);
   const undoT = useRef(null);
   const [page, setPage] = useState("home");
+  const navigate = p => { setCMsg(null); setCLoad(false); setPage(p); };
   const dk = dayKey();
 
   // Save state changes to localStorage
@@ -384,7 +385,7 @@ export default function Fruitful() {
   const claimReward = id => { const cat=cats.find(c=>c.id===id); const prev={...(counts[id]||{})}; pushUndo({type:"claim",cat:id,prev}); setCounts(p=>({...p,[id]:{}})); setToast(`🎉 Reward claimed: ${cat.reward}!`); setCMsg(`Congratulations on earning: ${cat.reward}! 🎉 You worked so hard — enjoy it! 💪✨`); };
   const diceRoll = r => { setMult(r); save("fr-mult", { day: dayKey(), val: r }); setToast(`🎲 You rolled a ${r}! All points today are ×${r}! 🌟`); };
   const addCat = () => { if(cats.length>=6)return; const cl=COLORS[cats.length%COLORS.length]; setCats(p=>[...p,{id:"c"+Date.now(),emoji:"⭐",label:"New Category",color:cl[0],bg:cl[1],dailyGoal:3,weeklyGoal:null,reward:"🎁 A treat",rewardType:"daily",rewardCycle:1}]); };
-  const removeCat = id => { setCats(p=>p.filter(c=>c.id!==id)); setCounts(p=>{const n={...p};delete n[id];return n}); setTasks(p=>{const n={...p};delete n[id];return n}); if(page===id)setPage("home"); };
+  const removeCat = id => { setCats(p=>p.filter(c=>c.id!==id)); setCounts(p=>{const n={...p};delete n[id];return n}); setTasks(p=>{const n={...p};delete n[id];return n}); if(page===id)navigate("home"); };
   const updateCat = (id, u) => setCats(p=>p.map(c=>c.id===id?{...c,...u}:c));
 
   const ac = cats.find(c=>c.id===page);
@@ -397,10 +398,10 @@ export default function Fruitful() {
       <button onClick={doUndo} style={{ display:"flex",alignItems:"center",gap:8,background:"#3A2E4A",color:"#FFF",border:"none",borderRadius:16,padding:"11px 20px",fontFamily:"'Fredoka',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",boxShadow:"0 6px 24px rgba(58,46,74,0.35)" }}>↩️ Undo</button>
     </div>}
     <div style={{ maxWidth:480,margin:"0 auto",padding:"18px 16px 24px" }}>
-      {page==="home"&&<Home cats={cats} counts={counts} mult={mult} onDice={diceRoll} cMsg={cMsg} cLoad={cLoad} lifetime={lifetime} go={setPage} onTap={quickTap}/>}
+      {page==="home"&&<Home cats={cats} counts={counts} mult={mult} onDice={diceRoll} cMsg={cMsg} cLoad={cLoad} lifetime={lifetime} go={navigate} onTap={quickTap}/>}
       {page==="settings"&&<Settings cats={cats} onUpdate={updateCat} onAdd={addCat} onRemove={removeCat}/>}
       {ac&&<CatPage cat={ac} counts={counts} tasks={tasks[ac.id]||[]} mult={mult} cats={cats} onTap={()=>quickTap(ac.id)} onText={t=>detailSubmit(ac.id,t)} onAddTask={(t,r)=>addTask(ac.id,t,r)} onToggle={i=>toggleTask(ac.id,i)} onDelete={i=>deleteTask(ac.id,i)} onClaim={()=>claimReward(ac.id)} cMsg={cMsg} cLoad={cLoad}/>}
     </div>
-    <Nav cats={cats} page={page} go={setPage}/>
+    <Nav cats={cats} page={page} go={navigate}/>
   </div>;
 }

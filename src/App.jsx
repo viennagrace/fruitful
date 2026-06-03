@@ -72,7 +72,7 @@ function Dice({ onRoll, mult }) {
   const roll = () => {
     if (rolling||mult>1) return;
     setRolling(true); let c=0;
-    const iv=setInterval(()=>{ setFace(Math.floor(Math.random()*6)); c++; if(c>12){clearInterval(iv);const r=Math.floor(Math.random()*6)+1;setFace(r-1);setRolling(false);onRoll(r);}},80);
+    const iv=setInterval(()=>{ setFace(Math.floor(Math.random()*6)); c++; if(c>12){clearInterval(iv);const r=Math.floor(Math.random()*5)+2;setFace(r-1);setRolling(false);onRoll(r);}},80);
   };
   return <button onClick={roll} style={{ background:mult>1?"linear-gradient(135deg,#FFD700,#FFA500)":"linear-gradient(135deg,#E8E0F0,#D0C4E0)",border:"none",borderRadius:16,padding:"10px 18px",cursor:mult>1?"default":"pointer",fontSize:28,display:"flex",alignItems:"center",gap:10,fontFamily:"'Fredoka',sans-serif",fontWeight:600,color:"#5A4A6A",boxShadow:mult>1?"0 0 20px rgba(255,215,0,0.4)":"0 2px 8px rgba(0,0,0,0.08)",animation:rolling?"shake 0.1s infinite":"none" }}>
     <span style={{ fontSize:32 }}>{DICE[face]}</span>

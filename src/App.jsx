@@ -89,7 +89,7 @@ function PBar({ pct, color, h=8 }) {
 
 // ── Recurring Picker ──
 function RecPicker({ value, onChange }) {
-  if (!value) return <button onClick={()=>onChange({freq:"daily",every:1})} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#AAA",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁 Make recurring</button>;
+  if (!value) return <button onClick={()=>onChange({freq:"daily",every:1})} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#AAA",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁 Recur</button>;
   return <div style={{ display:"flex",alignItems:"center",gap:6,flexWrap:"wrap" }}>
     <span style={{ fontSize:12,color:"#7A6A8A",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁</span>
     <input type="number" min={1} max={99} value={value.every} onFocus={e=>e.target.select()} onChange={e=>onChange({...value,every:Math.max(1,parseInt(e.target.value)||1)})} style={{ width:38,border:"1.5px solid #DDD",borderRadius:8,padding:"4px 6px",textAlign:"center",fontSize:13,fontFamily:"'Nunito',sans-serif",fontWeight:700,outline:"none" }}/>
@@ -318,10 +318,10 @@ function CatPage({ cat, counts, tasks, mult, cats, onTap, onText, onAddTask, onT
         <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:pendingSubs?10:0 }}>
           <RecPicker value={nrec} onChange={setNrec}/>
           {!pendingSubs&&<button onClick={handleBiteSize} disabled={!ntxt.trim()||breakdownLoading} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:ntxt.trim()?"#7A6A8A":"#CCC",cursor:ntxt.trim()?"pointer":"default",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>
-            {breakdownLoading?"✨ Thinking...":"🧩 Make bite-sized"}
+            {breakdownLoading?"✨ Thinking...":"🧩 Bite-size it"}
           </button>}
           {!pendingSubs&&<button onClick={handleManualBreakdown} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#AAA",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>
-            ✏️ Break it down myself
+            ✏️ Add steps
           </button>}
         </div>
         {/* Pending subtasks preview */}

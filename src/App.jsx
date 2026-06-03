@@ -91,8 +91,9 @@ function PBar({ pct, color, h=8 }) {
 function RecPicker({ value, onChange }) {
   if (!value) return <button onClick={()=>onChange({freq:"daily",every:1})} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#AAA",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁 Make recurring</button>;
   return <div style={{ display:"flex",alignItems:"center",gap:6,flexWrap:"wrap" }}>
-    <span style={{ fontSize:12,color:"#7A6A8A",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁 Every</span>
-    <input type="number" min={1} max={99} value={value.every} onChange={e=>onChange({...value,every:Math.max(1,parseInt(e.target.value)||1)})} style={{ width:44,border:"1.5px solid #DDD",borderRadius:8,padding:"4px 6px",textAlign:"center",fontSize:13,fontFamily:"'Nunito',sans-serif",fontWeight:700,outline:"none" }}/>
+    <span style={{ fontSize:12,color:"#7A6A8A",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁</span>
+    <input type="number" min={1} max={99} value={value.every} onFocus={e=>e.target.select()} onChange={e=>onChange({...value,every:Math.max(1,parseInt(e.target.value)||1)})} style={{ width:38,border:"1.5px solid #DDD",borderRadius:8,padding:"4px 6px",textAlign:"center",fontSize:13,fontFamily:"'Nunito',sans-serif",fontWeight:700,outline:"none" }}/>
+    <span style={{ fontSize:12,color:"#7A6A8A",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>x</span>
     {FREQ.map(f=><button key={f} onClick={()=>onChange({...value,freq:f})} style={{ padding:"4px 10px",borderRadius:8,fontSize:11,fontFamily:"'Fredoka',sans-serif",fontWeight:600,border:"none",cursor:"pointer",background:value.freq===f?"#7A6A8A":"#F0E8F8",color:value.freq===f?"#FFF":"#7A6A8A" }}>{f}</button>)}
     <button onClick={()=>onChange(null)} style={{ background:"none",border:"none",color:"#CCC",cursor:"pointer",fontSize:16 }}>✕</button>
   </div>;
@@ -117,9 +118,52 @@ function SwipeRow({ task, cat, idx, onToggle, onDelete }) {
       <div style={{ width:22,height:22,borderRadius:7,border:`2px solid ${task.done?cat.color:"#CCC"}`,background:task.done?cat.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFF",fontSize:13,fontWeight:700,flexShrink:0 }}>{task.done&&"✓"}</div>
       <div style={{ flex:1,minWidth:0 }}>
         <span style={{ fontFamily:"'Nunito',sans-serif",fontSize:14,color:task.done?"#9A8AAA":"#3A2E4A",textDecoration:task.done?"line-through":"none" }}>{task.text}</span>
-        {task.recurring&&<div style={{ fontSize:10,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontWeight:600,marginTop:2 }}>🔁 Every {task.recurring.every>1?`${task.recurring.every} `:""}{task.recurring.freq}</div>}
+        {task.recurring&&<div style={{ fontSize:10,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontWeight:600,marginTop:2 }}>🔁 {task.recurring.every>1?`${task.recurring.every}x `:""}{task.recurring.freq}</div>}
       </div>
     </div>
+  </div>;
+}
+
+// ── Task with Subtasks ──
+function TaskWithSubs({ task, cat, idx, onToggle, onDelete, onToggleSub, onDeleteSub, onEditSub, onAddSub }) {
+  const [expanded, setExpanded] = useState(true);
+  const [addText, setAddText] = useState("");
+  const [editIdx, setEditIdx] = useState(null);
+  const [editText, setEditText] = useState("");
+  const doneSubs = (task.subtasks||[]).filter(s=>s.done).length;
+  const totalSubs = (task.subtasks||[]).length;
+  const allDone = task.done || doneSubs===totalSubs;
+
+  return <div style={{ borderRadius:14,overflow:"hidden",border:`1.5px solid ${allDone?cat.color+"33":"#E8E0F0"}`,background:allDone?`${cat.color}08`:"#FFF" }}>
+    {/* Parent task header */}
+    <div style={{ display:"flex",alignItems:"center",gap:10,padding:"12px 14px" }}>
+      <div onClick={e=>{e.stopPropagation();if(!allDone)onToggle(idx)}} style={{ width:22,height:22,borderRadius:7,border:`2px solid ${allDone?cat.color:"#CCC"}`,background:allDone?cat.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFF",fontSize:13,fontWeight:700,flexShrink:0,cursor:allDone?"default":"pointer" }}>{allDone&&"✓"}</div>
+      <div style={{ flex:1,minWidth:0,cursor:"pointer" }} onClick={()=>setExpanded(!expanded)}>
+        <span style={{ fontFamily:"'Nunito',sans-serif",fontSize:14,fontWeight:600,color:allDone?"#9A8AAA":"#3A2E4A",textDecoration:allDone?"line-through":"none" }}>{task.text}</span>
+        <div style={{ fontSize:10,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontWeight:600,marginTop:2 }}>
+          🧩 {doneSubs}/{totalSubs} subtasks done
+          {task.recurring&&<span> · 🔁 {task.recurring.every>1?`${task.recurring.every}x `:""}{task.recurring.freq}</span>}
+        </div>
+      </div>
+      <span onClick={()=>setExpanded(!expanded)} style={{ fontSize:14,color:"#CCC",transition:"transform 0.2s",transform:expanded?"rotate(90deg)":"rotate(0)",cursor:"pointer" }}>›</span>
+    </div>
+
+    {/* Subtasks */}
+    {expanded&&<div style={{ padding:"0 14px 12px",marginLeft:18,borderTop:"1px solid #F0E8F8" }}>
+      {(task.subtasks||[]).map((sub,si)=><div key={sub.id} style={{ display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:si<totalSubs-1?"1px solid #F8F4FC":"none" }}>
+        <div onClick={()=>{if(!sub.done)onToggleSub(idx,si)}} style={{ width:18,height:18,borderRadius:5,border:`2px solid ${sub.done?cat.color:"#CCC"}`,background:sub.done?cat.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFF",fontSize:10,fontWeight:700,flexShrink:0,cursor:sub.done?"default":"pointer" }}>{sub.done&&"✓"}</div>
+        {editIdx===si
+          ? <input autoFocus value={editText} onChange={e=>setEditText(e.target.value)} onBlur={()=>{if(editText.trim())onEditSub(idx,si,editText.trim());setEditIdx(null)}} onKeyDown={e=>{if(e.key==="Enter"){if(editText.trim())onEditSub(idx,si,editText.trim());setEditIdx(null)}}} style={{ flex:1,border:"1.5px solid #E8E0F0",borderRadius:6,padding:"4px 8px",fontSize:12,fontFamily:"'Nunito',sans-serif",outline:"none" }}/>
+          : <span onClick={()=>{if(!sub.done){setEditIdx(si);setEditText(sub.text)}}} style={{ flex:1,fontFamily:"'Nunito',sans-serif",fontSize:13,color:sub.done?"#BBA8CC":"#4A3A5A",textDecoration:sub.done?"line-through":"none",cursor:sub.done?"default":"text" }}>{sub.text}</span>
+        }
+        {!sub.done&&<button onClick={()=>onDeleteSub(idx,si)} style={{ background:"none",border:"none",color:"#DDD",cursor:"pointer",fontSize:12,padding:"0 2px" }}>✕</button>}
+      </div>)}
+      {/* Add subtask inline */}
+      <div style={{ display:"flex",gap:6,marginTop:6 }}>
+        <input value={addText} onChange={e=>setAddText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&addText.trim()){onAddSub(idx,addText.trim());setAddText("")}}} placeholder="Add subtask..." style={{ flex:1,border:"1.5px dashed #E0D8E8",borderRadius:6,padding:"4px 8px",fontSize:12,fontFamily:"'Nunito',sans-serif",outline:"none" }}/>
+        <button onClick={()=>{if(addText.trim()){onAddSub(idx,addText.trim());setAddText("")}}} style={{ background:"none",border:"none",color:cat.color,cursor:"pointer",fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:14 }}>+</button>
+      </div>
+    </div>}
   </div>;
 }
 
@@ -174,7 +218,7 @@ function Home({ cats, counts, mult, onDice, cMsg, cLoad, lifetime, go, onTap }) 
               <div>
                 <div style={{ fontFamily:"'Fredoka',sans-serif",fontWeight:600,fontSize:15,color:"#3A2E4A" }}>{cat.label}</div>
                 <div style={{ fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#9A8AAA",fontWeight:600 }}>
-                  {cat.dailyGoal?`${c.daily}/${cat.dailyGoal} today`:""}{cat.dailyGoal&&cat.weeklyGoal?" · ":""}{cat.weeklyGoal?`${c.weekly}/${cat.rewardType==="multi-week"?tgt:cat.weeklyGoal} ${cat.rewardType==="multi-week"?`(${cat.rewardCycle}wk)`:"wk"}`:""}
+                  {cat.dailyGoal?`${c.daily}/${cat.dailyGoal} today`:""}{cat.dailyGoal&&cat.weeklyGoal?" · ":""}{cat.weeklyGoal?`${c.weekly}/${cat.rewardType==="multi-week"?tgt:cat.weeklyGoal} per ${cat.rewardType==="multi-week"?`${cat.rewardCycle} weeks`:"week"}`:""}
                 </div>
               </div>
             </div>
@@ -197,12 +241,46 @@ function Home({ cats, counts, mult, onDice, cMsg, cLoad, lifetime, go, onTap }) 
 }
 
 // ── Category Page ──
-function CatPage({ cat, counts, tasks, mult, cats, onTap, onText, onAddTask, onToggle, onDelete, onClaim, cMsg, cLoad }) {
+function CatPage({ cat, counts, tasks, mult, cats, onTap, onText, onAddTask, onToggle, onDelete, onClaim, cMsg, cLoad, onToggleSub, onDeleteSub, onEditSub, onAddSub, callBreakdown }) {
   const [mode, setMode] = useState("quick");
   const [text, setText] = useState("");
   const [ntxt, setNtxt] = useState("");
   const [nrec, setNrec] = useState(null);
+  const [pendingSubs, setPendingSubs] = useState(null); // subtasks being built before adding
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [newSubText, setNewSubText] = useState("");
   const c = getCounts(counts, cat.id, cats), tgt=rewardTarget(cat), cur=rewardCurrent(cat,c), ready=cur>=tgt;
+
+  const handleBiteSize = async () => {
+    if (!ntxt.trim()) return;
+    setBreakdownLoading(true);
+    const subs = await callBreakdown(ntxt.trim());
+    setPendingSubs(subs.length>0 ? subs : [{ id:"st_"+Math.random().toString(36).slice(2,8), text:"", done:false }]);
+    setBreakdownLoading(false);
+  };
+
+  const handleManualBreakdown = () => {
+    setPendingSubs([{ id:"st_"+Math.random().toString(36).slice(2,8), text:"", done:false }]);
+  };
+
+  const addPendingSub = () => {
+    setPendingSubs(p => [...(p||[]), { id:"st_"+Math.random().toString(36).slice(2,8), text:"", done:false }]);
+  };
+
+  const editPendingSub = (i, txt) => {
+    setPendingSubs(p => { const n=[...p]; n[i]={...n[i],text:txt}; return n; });
+  };
+
+  const deletePendingSub = (i) => {
+    setPendingSubs(p => { const n=[...p]; n.splice(i,1); return n.length>0?n:null; });
+  };
+
+  const handleAddTask = () => {
+    if (!ntxt.trim()) return;
+    const validSubs = pendingSubs ? pendingSubs.filter(s=>s.text.trim()) : null;
+    onAddTask(ntxt.trim(), nrec, validSubs && validSubs.length>0 ? validSubs : null);
+    setNtxt(""); setNrec(null); setPendingSubs(null); setNewSubText("");
+  };
 
   return <div>
     <div style={{ textAlign:"center",marginBottom:20 }}>
@@ -229,18 +307,43 @@ function CatPage({ cat, counts, tasks, mult, cats, onTap, onText, onAddTask, onT
     {mode==="quick"&&<button onClick={onTap} style={{ width:"100%",padding:"28px 0",borderRadius:20,border:`3px solid ${cat.color}44`,background:`linear-gradient(135deg,${cat.bg},${cat.color}15)`,cursor:"pointer",fontSize:48 }}>{cat.emoji}<div style={{ fontSize:14,fontFamily:"'Fredoka',sans-serif",fontWeight:600,color:"#5A4A6A",marginTop:8 }}>Tap to log +{mult>1?`${mult} (×${mult})`:"1"}</div></button>}
     {mode==="text"&&<div>
       <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Tell me what you accomplished! ✨" style={{ width:"100%",minHeight:100,border:`2px solid ${cat.color}44`,borderRadius:16,padding:16,fontSize:15,fontFamily:"'Nunito',sans-serif",resize:"vertical",outline:"none",background:cat.bg,boxSizing:"border-box" }}/>
-      <button onClick={()=>{if(text.trim()){onText(text.trim());setText("")}}} disabled={!text.trim()} style={{ width:"100%",marginTop:10,padding:13,borderRadius:14,border:"none",background:text.trim()?`linear-gradient(135deg,${cat.color},${cat.color}CC)`:"#E0D8E8",color:"#FFF",fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:15,cursor:text.trim()?"pointer":"default" }}>Log it! {cat.emoji}</button>
+      <button onClick={()=>{if(text.trim()){onText(text.trim());setText("")}}} disabled={!text.trim()} style={{ width:"100%",marginTop:10,padding:13,borderRadius:14,border:"none",background:text.trim()?cat.color:`${cat.color}44`,color:text.trim()?"#FFF":"#9A8AAA",fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:15,cursor:text.trim()?"pointer":"default" }}>Log it! {cat.emoji}</button>
     </div>}
     {mode==="check"&&<div>
       <div style={{ background:"#FFF",borderRadius:16,padding:14,marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
         <div style={{ display:"flex",gap:8,marginBottom:8 }}>
-          <input value={ntxt} onChange={e=>setNtxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&ntxt.trim()){onAddTask(ntxt.trim(),nrec);setNtxt("");setNrec(null)}}} placeholder="Add a task..." style={{ flex:1,border:`2px solid ${cat.color}44`,borderRadius:12,padding:"10px 14px",fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none",background:cat.bg }}/>
-          <button onClick={()=>{if(ntxt.trim()){onAddTask(ntxt.trim(),nrec);setNtxt("");setNrec(null)}}} style={{ background:cat.color,border:"none",borderRadius:12,padding:"10px 16px",color:"#FFF",fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:16,cursor:"pointer" }}>+</button>
+          <input value={ntxt} onChange={e=>setNtxt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&ntxt.trim()&&!pendingSubs)handleAddTask()}} placeholder="Add a task..." style={{ flex:1,border:`2px solid ${cat.color}44`,borderRadius:12,padding:"10px 14px",fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none",background:cat.bg }}/>
+          <button onClick={handleAddTask} disabled={!ntxt.trim()} style={{ background:ntxt.trim()?cat.color:`${cat.color}44`,border:"none",borderRadius:12,padding:"10px 16px",color:"#FFF",fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:16,cursor:ntxt.trim()?"pointer":"default" }}>+</button>
         </div>
-        <RecPicker value={nrec} onChange={setNrec}/>
+        <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:pendingSubs?10:0 }}>
+          <RecPicker value={nrec} onChange={setNrec}/>
+          {!pendingSubs&&<button onClick={handleBiteSize} disabled={!ntxt.trim()||breakdownLoading} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:ntxt.trim()?"#7A6A8A":"#CCC",cursor:ntxt.trim()?"pointer":"default",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>
+            {breakdownLoading?"✨ Thinking...":"🧩 Make bite-sized"}
+          </button>}
+          {!pendingSubs&&<button onClick={handleManualBreakdown} style={{ background:"none",border:"1.5px dashed #CCC",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#AAA",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>
+            ✏️ Break it down myself
+          </button>}
+        </div>
+        {/* Pending subtasks preview */}
+        {pendingSubs&&<div style={{ borderTop:"1.5px solid #F0E8F8",paddingTop:10 }}>
+          <div style={{ fontSize:11,fontFamily:"'Fredoka',sans-serif",fontWeight:600,color:"#7A6A8A",marginBottom:6 }}>Subtasks:</div>
+          {pendingSubs.map((s,i)=><div key={s.id} style={{ display:"flex",gap:6,alignItems:"center",marginBottom:6 }}>
+            <span style={{ color:"#CCC",fontSize:12 }}>•</span>
+            <input value={s.text} onChange={e=>editPendingSub(i,e.target.value)} placeholder="Subtask..." style={{ flex:1,border:"1.5px solid #E8E0F0",borderRadius:8,padding:"6px 10px",fontSize:13,fontFamily:"'Nunito',sans-serif",outline:"none" }}/>
+            <button onClick={()=>deletePendingSub(i)} style={{ background:"none",border:"none",color:"#CCC",cursor:"pointer",fontSize:14 }}>✕</button>
+          </div>)}
+          <div style={{ display:"flex",gap:6 }}>
+            <button onClick={addPendingSub} style={{ background:"none",border:"1.5px dashed #DDD",borderRadius:8,padding:"4px 12px",fontSize:11,color:"#AAA",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>+ Add subtask</button>
+            <button onClick={()=>setPendingSubs(null)} style={{ background:"none",border:"none",fontSize:11,color:"#CCC",cursor:"pointer",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>Cancel</button>
+          </div>
+        </div>}
       </div>
       <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-        {(tasks||[]).map((t,i)=><SwipeRow key={t.text+i} task={t} cat={cat} idx={i} onToggle={onToggle} onDelete={onDelete}/>)}
+        {(tasks||[]).map((t,i)=>
+          t.subtasks && t.subtasks.length>0
+            ? <TaskWithSubs key={t.text+i} task={t} cat={cat} idx={i} onToggle={onToggle} onDelete={onDelete} onToggleSub={onToggleSub} onDeleteSub={onDeleteSub} onEditSub={onEditSub} onAddSub={onAddSub}/>
+            : <SwipeRow key={t.text+i} task={t} cat={cat} idx={i} onToggle={onToggle} onDelete={onDelete}/>
+        )}
         {(!tasks||tasks.length===0)&&<div style={{ textAlign:"center",padding:24,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontSize:14 }}>No tasks yet — add some above!</div>}
       </div>
     </div>}
@@ -350,7 +453,32 @@ export default function Fruitful() {
       setLifetime(p=>Math.max(p-undo.pts,0));
     }
     if(undo.type==="task"){
-      setTasks(p=>{const ct=[...(p[undo.cat]||[])];if(ct[undo.idx])ct[undo.idx]={...ct[undo.idx],done:false};return{...p,[undo.cat]:ct}});
+      setTasks(p=>{
+        const ct=[...(p[undo.cat]||[])];
+        const task={...ct[undo.idx]};
+        if(task.subtasks && undo.prevSubStates) {
+          task.subtasks = task.subtasks.map((s,i)=>({...s,done:undo.prevSubStates[i]||false}));
+          task.done = task.subtasks.every(s=>s.done);
+        } else {
+          task.done=false;
+        }
+        ct[undo.idx]=task;
+        return{...p,[undo.cat]:ct};
+      });
+      setCounts(p=>{const cc={...(p[undo.cat]||{})};cc[dk]=Math.max((cc[dk]||0)-undo.pts,0);return{...p,[undo.cat]:cc}});
+      setLifetime(p=>Math.max(p-undo.pts,0));
+    }
+    if(undo.type==="subtask"){
+      setTasks(p=>{
+        const ct=[...(p[undo.cat]||[])];
+        const task={...ct[undo.taskIdx]};
+        const subs=[...(task.subtasks||[])];
+        subs[undo.subIdx]={...subs[undo.subIdx],done:false};
+        task.subtasks=subs;
+        task.done=false;
+        ct[undo.taskIdx]=task;
+        return{...p,[undo.cat]:ct};
+      });
       setCounts(p=>{const cc={...(p[undo.cat]||{})};cc[dk]=Math.max((cc[dk]||0)-undo.pts,0);return{...p,[undo.cat]:cc}});
       setLifetime(p=>Math.max(p-undo.pts,0));
     }
@@ -360,13 +488,13 @@ export default function Fruitful() {
 
   const addPts = id => { const pts=mult; setCounts(p=>{const cc={...(p[id]||{})};cc[dk]=(cc[dk]||0)+pts;return{...p,[id]:cc}}); setLifetime(p=>p+pts); return pts; };
 
-  // Fruitful API proxy — routes Claude requests through Cloudflare Worker
-  const WORKER_URL = "https://fruitful-api.fruitful.workers.dev/api/motivate";
+  // Fruitful API proxy
+  const WORKER = "https://fruitful-api.fruitful.workers.dev/api";
 
   const callClaude = async (txt, label) => {
     setCLoad(true); setCMsg(null);
     try {
-      const r = await fetch(WORKER_URL, {
+      const r = await fetch(WORKER+"/motivate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taskText: txt, categoryLabel: label })
@@ -377,11 +505,95 @@ export default function Fruitful() {
     setCLoad(false);
   };
 
+  const callBreakdown = async (txt) => {
+    try {
+      const r = await fetch(WORKER+"/breakdown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskText: txt })
+      });
+      const d = await r.json();
+      return (d.subtasks||[]).map(s => ({ id:"st_"+Math.random().toString(36).slice(2,8), text:s, done:false }));
+    } catch { return []; }
+  };
+
   const quickTap = id => { const cat=cats.find(c=>c.id===id); const pts=addPts(id); pushUndo({type:"add",cat:id,pts}); setCMsg(null); setToast(`${cat.emoji} +${pts}${mult>1?` (×${mult})`:""} — ${randMotiv()}`); };
   const detailSubmit = (id, txt) => { const cat=cats.find(c=>c.id===id); const pts=addPts(id); pushUndo({type:"add",cat:id,pts}); callClaude(txt,cat.label); };
-  const addTask = (id, txt, rec) => setTasks(p=>{const ct=[...(p[id]||[])];ct.push({text:txt,done:false,createdAt:new Date().toISOString(),recurring:rec||null});return{...p,[id]:ct}});
+  const addTask = (id, txt, rec, subs) => setTasks(p=>{const ct=[...(p[id]||[])];ct.push({text:txt,done:false,createdAt:new Date().toISOString(),recurring:rec||null,subtasks:subs||null});return{...p,[id]:ct}});
   const deleteTask = (id, i) => { const cat=cats.find(c=>c.id===id); setTasks(p=>{const ct=[...(p[id]||[])];ct.splice(i,1);return{...p,[id]:ct}}); setToast(`${cat.emoji} Task deleted`); };
-  const toggleTask = (id, i) => { const cat=cats.find(c=>c.id===id); setTasks(p=>{const ct=[...(p[id]||[])];ct[i]={...ct[i],done:true};return{...p,[id]:ct}}); const pts=addPts(id); pushUndo({type:"task",cat:id,idx:i,pts}); setToast(`${cat.emoji} +${pts} — Task checked off! ${randMotiv()}`); };
+  const toggleTask = (id, i) => {
+    const cat=cats.find(c=>c.id===id);
+    const currentTasks = tasks[id]||[];
+    const task = currentTasks[i];
+    const prevSubStates = task?.subtasks ? task.subtasks.map(s=>s.done) : null;
+    const remaining = task?.subtasks ? task.subtasks.filter(s=>!s.done).length : 0;
+    const pointCount = task?.subtasks && task.subtasks.length>0 ? remaining : 1;
+    
+    setTasks(p=>{
+      const ct=[...(p[id]||[])];
+      const t={...ct[i]};
+      if(t.subtasks && t.subtasks.length>0) {
+        t.subtasks = t.subtasks.map(s=>({...s,done:true}));
+      }
+      t.done=true;
+      ct[i]=t;
+      return{...p,[id]:ct};
+    });
+    let pts = 0;
+    for(let n=0;n<(pointCount||1);n++) pts+=addPts(id);
+    pushUndo({type:"task",cat:id,idx:i,pts,prevSubStates});
+    setToast(`${cat.emoji} +${pts}${pointCount>1?` (${pointCount} tasks!)`:""} — ${randMotiv()}`);
+  };
+  const toggleSubtask = (id, ti, si) => {
+    const cat=cats.find(c=>c.id===id);
+    setTasks(p=>{
+      const ct=[...(p[id]||[])];
+      const task={...ct[ti]};
+      const subs=[...(task.subtasks||[])];
+      subs[si]={...subs[si],done:true};
+      task.subtasks=subs;
+      if(subs.every(s=>s.done)) task.done=true;
+      ct[ti]=task;
+      return{...p,[id]:ct};
+    });
+    const pts=addPts(id);
+    pushUndo({type:"subtask",cat:id,taskIdx:ti,subIdx:si,pts});
+    setToast(`${cat.emoji} +${pts} — Subtask done! ${randMotiv()}`);
+  };
+  const deleteSubtask = (id, ti, si) => {
+    setTasks(p=>{
+      const ct=[...(p[id]||[])];
+      const task={...ct[ti]};
+      const subs=[...(task.subtasks||[])];
+      subs.splice(si,1);
+      task.subtasks=subs.length>0?subs:null;
+      ct[ti]=task;
+      return{...p,[id]:ct};
+    });
+  };
+  const editSubtask = (id, ti, si, txt) => {
+    setTasks(p=>{
+      const ct=[...(p[id]||[])];
+      const task={...ct[ti]};
+      const subs=[...(task.subtasks||[])];
+      subs[si]={...subs[si],text:txt};
+      task.subtasks=subs;
+      ct[ti]=task;
+      return{...p,[id]:ct};
+    });
+  };
+  const addSubtaskToTask = (id, ti, txt) => {
+    setTasks(p=>{
+      const ct=[...(p[id]||[])];
+      const task={...ct[ti]};
+      const subs=[...(task.subtasks||[])];
+      subs.push({id:"st_"+Math.random().toString(36).slice(2,8),text:txt,done:false});
+      task.subtasks=subs;
+      task.done=false;
+      ct[ti]=task;
+      return{...p,[id]:ct};
+    });
+  };
   const claimReward = id => { const cat=cats.find(c=>c.id===id); const prev={...(counts[id]||{})}; pushUndo({type:"claim",cat:id,prev}); setCounts(p=>({...p,[id]:{}})); setToast(`🎉 Reward claimed: ${cat.reward}!`); setCMsg(`Congratulations on earning: ${cat.reward}! 🎉 You worked so hard — enjoy it! 💪✨`); };
   const diceRoll = r => { setMult(r); save("fr-mult", { day: dayKey(), val: r }); setToast(`🎲 You rolled a ${r}! All points today are ×${r}! 🌟`); };
   const addCat = () => { if(cats.length>=6)return; const cl=COLORS[cats.length%COLORS.length]; setCats(p=>[...p,{id:"c"+Date.now(),emoji:"⭐",label:"New Category",color:cl[0],bg:cl[1],dailyGoal:3,weeklyGoal:null,reward:"🎁 A treat",rewardType:"daily",rewardCycle:1}]); };
@@ -400,7 +612,7 @@ export default function Fruitful() {
     <div style={{ maxWidth:480,margin:"0 auto",padding:"18px 16px 24px" }}>
       {page==="home"&&<Home cats={cats} counts={counts} mult={mult} onDice={diceRoll} cMsg={cMsg} cLoad={cLoad} lifetime={lifetime} go={navigate} onTap={quickTap}/>}
       {page==="settings"&&<Settings cats={cats} onUpdate={updateCat} onAdd={addCat} onRemove={removeCat}/>}
-      {ac&&<CatPage cat={ac} counts={counts} tasks={tasks[ac.id]||[]} mult={mult} cats={cats} onTap={()=>quickTap(ac.id)} onText={t=>detailSubmit(ac.id,t)} onAddTask={(t,r)=>addTask(ac.id,t,r)} onToggle={i=>toggleTask(ac.id,i)} onDelete={i=>deleteTask(ac.id,i)} onClaim={()=>claimReward(ac.id)} cMsg={cMsg} cLoad={cLoad}/>}
+      {ac&&<CatPage cat={ac} counts={counts} tasks={tasks[ac.id]||[]} mult={mult} cats={cats} onTap={()=>quickTap(ac.id)} onText={t=>detailSubmit(ac.id,t)} onAddTask={(t,r,s)=>addTask(ac.id,t,r,s)} onToggle={i=>toggleTask(ac.id,i)} onDelete={i=>deleteTask(ac.id,i)} onClaim={()=>claimReward(ac.id)} cMsg={cMsg} cLoad={cLoad} onToggleSub={(ti,si)=>toggleSubtask(ac.id,ti,si)} onDeleteSub={(ti,si)=>deleteSubtask(ac.id,ti,si)} onEditSub={(ti,si,txt)=>editSubtask(ac.id,ti,si,txt)} onAddSub={(ti,txt)=>addSubtaskToTask(ac.id,ti,txt)} callBreakdown={callBreakdown}/>}
     </div>
     <Nav cats={cats} page={page} go={navigate}/>
   </div>;

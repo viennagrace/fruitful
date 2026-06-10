@@ -269,7 +269,7 @@ function Home({ cats, counts, mult, onDice, cMsg, cLoad, lifetime, go, onTap }) 
               <div>
                 <div style={{ fontFamily:"'Fredoka',sans-serif",fontWeight:600,fontSize:15,color:"#3A2E4A" }}>{cat.label}</div>
                 <div style={{ fontFamily:"'Nunito',sans-serif",fontSize:11,color:"#9A8AAA",fontWeight:600 }}>
-                  {cat.dailyGoal?`${c.daily}/${cat.dailyGoal} today`:""}{cat.dailyGoal&&cat.weeklyGoal?" · ":""}{cat.weeklyGoal?`${c.weekly}/${cat.rewardType==="multi-week"?tgt:cat.weeklyGoal} per ${cat.rewardType==="multi-week"?`${cat.rewardCycle} weeks`:"week"}`:""}
+                  {cat.dailyGoal?`${c.daily}/${cat.dailyGoal} today`:""}{cat.dailyGoal&&cat.weeklyGoal?" · ":""}{cat.weeklyGoal?`${cat.rewardType==="multi-week"?c.multiWeek:c.weekly}/${cat.rewardType==="multi-week"?tgt:cat.weeklyGoal} per ${cat.rewardType==="multi-week"?`${cat.rewardCycle} weeks`:"week"}`:""}
                 </div>
               </div>
             </div>
@@ -338,7 +338,7 @@ function CatPage({ cat, counts, tasks, mult, cats, onTap, onText, onAddTask, onT
       <span style={{ fontSize:52,display:"block",marginBottom:4 }}>{cat.emoji}</span>
       <h2 style={{ fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:24,color:"#3A2E4A",margin:"0 0 6px" }}>{cat.label}</h2>
       <div style={{ fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#9A8AAA",fontWeight:600 }}>
-        {cat.dailyGoal?`${c.daily}/${cat.dailyGoal} today`:""}{cat.dailyGoal&&cat.weeklyGoal?"  ·  ":""}{cat.weeklyGoal?`${c.weekly}/${cat.rewardType==="multi-week"?tgt:cat.weeklyGoal} this ${cat.rewardType==="multi-week"?`${cat.rewardCycle}-week cycle`:"week"}`:""}
+        {cat.dailyGoal?`${c.daily}/${cat.dailyGoal} today`:""}{cat.dailyGoal&&cat.weeklyGoal?"  ·  ":""}{cat.weeklyGoal?`${cat.rewardType==="multi-week"?c.multiWeek:c.weekly}/${cat.rewardType==="multi-week"?tgt:cat.weeklyGoal} this ${cat.rewardType==="multi-week"?`${cat.rewardCycle}-week cycle`:"week"}`:""}
       </div>
     </div>
     <div style={{ background:"#FFF",borderRadius:18,padding:16,marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,0.04)" }}>

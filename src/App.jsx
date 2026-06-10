@@ -20,8 +20,29 @@ const FREQ = ["daily","weekly","monthly","yearly"];
 const COLORS = [["#FFAD9E","#FFF0ED"],["#FF6B6B","#FFECEC"],["#FF8FAB","#FFF0F5"],["#FFB347","#FFF5E6"],["#FFD93D","#FFFBE6"],["#6BCB77","#EDFAEF"],["#7EB6FF","#EBF3FF"],["#C490E4","#F5EDFB"],["#A0A0A0","#F0F0F0"]];
 
 const dayKey = () => new Date().toISOString().slice(0,10);
+// "Active day" rolls over at 3am, not midnight — tasks completed before 3am count as yesterday
+const activeDay = () => {
+  const now = new Date();
+  if (now.getHours() < 3) { const d = new Date(now); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+  return now.toISOString().slice(0,10);
+};
 const weekStart = () => { const n=new Date(),d=new Date(n); d.setDate(n.getDate()-n.getDay()); d.setHours(0,0,0,0); return d; };
 const randMotiv = () => MOTIV[Math.floor(Math.random()*MOTIV.length)];
+
+// Refresh recurring tasks: reset done status if completed on a previous active day
+function refreshTasks(allTasks) {
+  const today = activeDay();
+  const refreshed = {};
+  for (const [catId, catTasks] of Object.entries(allTasks)) {
+    refreshed[catId] = catTasks.map(t => {
+      if (t.recurring && t.done && t.doneDate && t.doneDate !== today) {
+        return { ...t, done: false, doneDate: null, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+      }
+      return t;
+    });
+  }
+  return refreshed;
+}
 
 function getCounts(counts, catId, cats) {
   const c = counts[catId]||{}, dk = dayKey(), ws = weekStart();
@@ -163,6 +184,36 @@ function TaskWithSubs({ task, cat, idx, onToggle, onDelete, onToggleSub, onDelet
         <input value={addText} onChange={e=>setAddText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&addText.trim()){onAddSub(idx,addText.trim());setAddText("")}}} placeholder="Add subtask..." style={{ flex:1,border:"1.5px dashed #E0D8E8",borderRadius:6,padding:"4px 8px",fontSize:12,fontFamily:"'Nunito',sans-serif",outline:"none" }}/>
         <button onClick={()=>{if(addText.trim()){onAddSub(idx,addText.trim());setAddText("")}}} style={{ background:"none",border:"none",color:cat.color,cursor:"pointer",fontFamily:"'Fredoka',sans-serif",fontWeight:700,fontSize:14 }}>+</button>
       </div>
+    </div>}
+  </div>;
+}
+
+// ── Completed Today Section ──
+function CompletedSection({ tasks, cat, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const today = activeDay();
+  const completed = (tasks||[]).filter(t=>t.done && t.doneDate===today);
+  if (completed.length===0) return null;
+
+  return <div style={{ marginTop:12 }}>
+    <button onClick={()=>setExpanded(!expanded)} style={{ background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:6,padding:"8px 0",width:"100%" }}>
+      <span style={{ fontSize:12,color:"#BBA8CC",transition:"transform 0.2s",transform:expanded?"rotate(90deg)":"rotate(0)" }}>›</span>
+      <span style={{ fontFamily:"'Fredoka',sans-serif",fontSize:13,fontWeight:600,color:"#BBA8CC" }}>Completed today ({completed.length})</span>
+      <div style={{ flex:1,height:1,background:"#F0E8F8",marginLeft:8 }}/>
+    </button>
+    {expanded&&<div style={{ display:"flex",flexDirection:"column",gap:6,paddingTop:4 }}>
+      {completed.map(t=>{
+        const origIdx = (tasks||[]).indexOf(t);
+        return <div key={t.text+origIdx} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,background:`${cat.color}06`,border:`1px solid ${cat.color}15` }}>
+          <div style={{ width:20,height:20,borderRadius:6,background:cat.color,display:"flex",alignItems:"center",justifyContent:"center",color:"#FFF",fontSize:11,fontWeight:700,flexShrink:0 }}>✓</div>
+          <div style={{ flex:1,minWidth:0 }}>
+            <span style={{ fontFamily:"'Nunito',sans-serif",fontSize:13,color:"#BBA8CC",textDecoration:"line-through" }}>{t.text}</span>
+            {t.subtasks&&<div style={{ fontSize:10,color:"#D4C8E0",marginTop:1 }}>🧩 {t.subtasks.length} subtasks</div>}
+            {t.recurring&&<div style={{ fontSize:10,color:"#D4C8E0",marginTop:1 }}>🔁 {t.recurring.every>1?`${t.recurring.every}x `:""}{t.recurring.freq} — resets tomorrow</div>}
+          </div>
+          <button onClick={()=>onDelete(origIdx)} style={{ background:"none",border:"none",color:"#DDD",cursor:"pointer",fontSize:12 }}>✕</button>
+        </div>;
+      })}
     </div>}
   </div>;
 }
@@ -339,13 +390,16 @@ function CatPage({ cat, counts, tasks, mult, cats, onTap, onText, onAddTask, onT
         </div>}
       </div>
       <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-        {(tasks||[]).map((t,i)=>
-          t.subtasks && t.subtasks.length>0
-            ? <TaskWithSubs key={t.text+i} task={t} cat={cat} idx={i} onToggle={onToggle} onDelete={onDelete} onToggleSub={onToggleSub} onDeleteSub={onDeleteSub} onEditSub={onEditSub} onAddSub={onAddSub}/>
-            : <SwipeRow key={t.text+i} task={t} cat={cat} idx={i} onToggle={onToggle} onDelete={onDelete}/>
-        )}
-        {(!tasks||tasks.length===0)&&<div style={{ textAlign:"center",padding:24,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontSize:14 }}>No tasks yet — add some above!</div>}
+        {(tasks||[]).filter(t=>!t.done).map((t,i)=>{
+          const origIdx = (tasks||[]).indexOf(t);
+          return t.subtasks && t.subtasks.length>0
+            ? <TaskWithSubs key={t.text+origIdx} task={t} cat={cat} idx={origIdx} onToggle={onToggle} onDelete={onDelete} onToggleSub={onToggleSub} onDeleteSub={onDeleteSub} onEditSub={onEditSub} onAddSub={onAddSub}/>
+            : <SwipeRow key={t.text+origIdx} task={t} cat={cat} idx={origIdx} onToggle={onToggle} onDelete={onDelete}/>;
+        })}
+        {(tasks||[]).filter(t=>!t.done).length===0&&<div style={{ textAlign:"center",padding:24,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontSize:14 }}>No tasks yet — add some above!</div>}
       </div>
+      {/* Completed today */}
+      <CompletedSection tasks={tasks} cat={cat} onDelete={onDelete}/>
     </div>}
   </div>;
 }
@@ -424,7 +478,7 @@ function save(key, val) {
 export default function Fruitful() {
   const [cats, setCats] = useState(() => load("fr-cats", INIT_CATS));
   const [counts, setCounts] = useState(() => load("fr-counts", {}));
-  const [tasks, setTasks] = useState(() => load("fr-tasks", {}));
+  const [tasks, setTasks] = useState(() => refreshTasks(load("fr-tasks", {})));
   const [mult, setMult] = useState(() => {
     const s = load("fr-mult", { day: null, val: 1 });
     return s.day === dayKey() ? s.val : 1;
@@ -462,6 +516,7 @@ export default function Fruitful() {
         } else {
           task.done=false;
         }
+        if(!task.done) task.doneDate=null;
         ct[undo.idx]=task;
         return{...p,[undo.cat]:ct};
       });
@@ -476,6 +531,7 @@ export default function Fruitful() {
         subs[undo.subIdx]={...subs[undo.subIdx],done:false};
         task.subtasks=subs;
         task.done=false;
+        task.doneDate=null;
         ct[undo.taskIdx]=task;
         return{...p,[undo.cat]:ct};
       });
@@ -536,6 +592,7 @@ export default function Fruitful() {
         t.subtasks = t.subtasks.map(s=>({...s,done:true}));
       }
       t.done=true;
+      t.doneDate=activeDay();
       ct[i]=t;
       return{...p,[id]:ct};
     });
@@ -552,7 +609,7 @@ export default function Fruitful() {
       const subs=[...(task.subtasks||[])];
       subs[si]={...subs[si],done:true};
       task.subtasks=subs;
-      if(subs.every(s=>s.done)) task.done=true;
+      if(subs.every(s=>s.done)) { task.done=true; task.doneDate=activeDay(); }
       ct[ti]=task;
       return{...p,[id]:ct};
     });

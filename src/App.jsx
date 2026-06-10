@@ -29,19 +29,53 @@ const activeDay = () => {
 const weekStart = () => { const n=new Date(),d=new Date(n); d.setDate(n.getDate()-n.getDay()); d.setHours(0,0,0,0); return d; };
 const randMotiv = () => MOTIV[Math.floor(Math.random()*MOTIV.length)];
 
-// Refresh recurring tasks: reset done status if completed on a previous active day
+// Refresh recurring tasks: reset done status if completed in a previous period
 function refreshTasks(allTasks) {
   const today = activeDay();
+  const ws = weekStart();
   const refreshed = {};
   for (const [catId, catTasks] of Object.entries(allTasks)) {
     refreshed[catId] = catTasks.map(t => {
-      if (t.recurring && t.done && t.doneDate && t.doneDate !== today) {
-        return { ...t, done: false, doneDate: null, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+      if (!t.recurring || !t.done) {
+        // Also reset doneCount for partially completed recurring tasks from a previous period
+        if (t.recurring && t.doneDate && t.doneDate !== today && t.recurring.freq === "daily") {
+          return { ...t, doneCount: 0, doneDate: null, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+        }
+        if (t.recurring && t.doneDate && t.recurring.freq === "weekly" && new Date(t.doneDate) < ws) {
+          return { ...t, doneCount: 0, doneDate: null, done: false, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+        }
+        return t;
+      }
+      // Fully completed recurring tasks
+      if (t.recurring.freq === "daily" && t.doneDate !== today) {
+        return { ...t, done: false, doneDate: null, doneCount: 0, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+      }
+      if (t.recurring.freq === "weekly" && t.doneDate && new Date(t.doneDate) < ws) {
+        return { ...t, done: false, doneDate: null, doneCount: 0, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+      }
+      if (t.recurring.freq === "monthly" && t.doneDate) {
+        const dd = new Date(t.doneDate);
+        const now = new Date();
+        if (dd.getMonth() !== now.getMonth() || dd.getFullYear() !== now.getFullYear()) {
+          return { ...t, done: false, doneDate: null, doneCount: 0, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+        }
+      }
+      if (t.recurring.freq === "yearly" && t.doneDate) {
+        const dd = new Date(t.doneDate);
+        if (dd.getFullYear() !== new Date().getFullYear()) {
+          return { ...t, done: false, doneDate: null, doneCount: 0, subtasks: t.subtasks ? t.subtasks.map(s=>({...s,done:false})) : null };
+        }
       }
       return t;
     });
   }
   return refreshed;
+}
+
+// How many completions does a recurring task need per period?
+function recTarget(task) {
+  if (!task.recurring) return 1;
+  return task.recurring.every || 1;
 }
 
 function getCounts(counts, catId, cats) {
@@ -128,6 +162,10 @@ function SwipeRow({ task, cat, idx, onToggle, onDelete }) {
   const onStart = x => { setSx(x); setSw(true); };
   const onMove = x => { if(sx===null)return; const d=x-sx; setOx(d<0?Math.max(d,-100):0); };
   const onEnd = () => { setSw(false); setSx(null); setOx(ox<-70?-100:0); };
+  const target = recTarget(task);
+  const count = task.doneCount||0;
+  const isMulti = task.recurring && target > 1;
+
   return <div style={{ position:"relative",overflow:"hidden",borderRadius:12 }}>
     <div style={{ position:"absolute",right:0,top:0,bottom:0,width:80,background:"#E74C3C",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"0 12px 12px 0",cursor:"pointer" }} onClick={()=>{setOx(0);onDelete(idx);}}>
       <span style={{ color:"#FFF",fontSize:20 }}>🗑️</span>
@@ -136,10 +174,16 @@ function SwipeRow({ task, cat, idx, onToggle, onDelete }) {
       onMouseDown={e=>onStart(e.clientX)} onMouseMove={e=>{if(sw)onMove(e.clientX)}} onMouseUp={onEnd} onMouseLeave={()=>{if(sw)onEnd()}}
       onClick={()=>{if(Math.abs(ox)<5&&!task.done)onToggle(idx)}}
       style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,background:task.done?`${cat.color}10`:"#FFF",border:`1.5px solid ${task.done?cat.color+"33":"#E8E0F0"}`,cursor:task.done?"default":"pointer",transition:sw?"none":"transform 0.25s ease",transform:`translateX(${ox}px)`,userSelect:"none",position:"relative",zIndex:1 }}>
-      <div style={{ width:22,height:22,borderRadius:7,border:`2px solid ${task.done?cat.color:"#CCC"}`,background:task.done?cat.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFF",fontSize:13,fontWeight:700,flexShrink:0 }}>{task.done&&"✓"}</div>
+      <div style={{ width:22,height:22,borderRadius:7,border:`2px solid ${task.done?cat.color:count>0?cat.color:"#CCC"}`,background:task.done?cat.color:count>0?`${cat.color}44`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFF",fontSize:13,fontWeight:700,flexShrink:0 }}>{task.done&&"✓"}</div>
       <div style={{ flex:1,minWidth:0 }}>
         <span style={{ fontFamily:"'Nunito',sans-serif",fontSize:14,color:task.done?"#9A8AAA":"#3A2E4A",textDecoration:task.done?"line-through":"none" }}>{task.text}</span>
-        {task.recurring&&<div style={{ fontSize:10,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontWeight:600,marginTop:2 }}>🔁 {task.recurring.every>1?`${task.recurring.every}x `:""}{task.recurring.freq}</div>}
+        <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:2 }}>
+          {isMulti&&!task.done&&<div style={{ display:"flex",gap:3,alignItems:"center" }}>
+            {Array.from({length:target}).map((_,i)=><div key={i} style={{ width:8,height:8,borderRadius:4,background:i<count?cat.color:`${cat.color}25`,transition:"background 0.2s" }}/>)}
+            <span style={{ fontSize:10,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontWeight:600,marginLeft:2 }}>{count}/{target}</span>
+          </div>}
+          {task.recurring&&<div style={{ fontSize:10,color:"#BBA8CC",fontFamily:"'Nunito',sans-serif",fontWeight:600 }}>🔁 {target>1?`${target}x `:""}{task.recurring.freq}</div>}
+        </div>
       </div>
     </div>
   </div>;
@@ -506,6 +550,17 @@ export default function Fruitful() {
       setCounts(p=>{const cc={...(p[undo.cat]||{})};cc[dk]=Math.max((cc[dk]||0)-undo.pts,0);return{...p,[undo.cat]:cc}});
       setLifetime(p=>Math.max(p-undo.pts,0));
     }
+    if(undo.type==="partial"){
+      setTasks(p=>{
+        const ct=[...(p[undo.cat]||[])];
+        const task={...ct[undo.idx]};
+        task.doneCount = Math.max((task.doneCount||1)-1, 0);
+        ct[undo.idx]=task;
+        return{...p,[undo.cat]:ct};
+      });
+      setCounts(p=>{const cc={...(p[undo.cat]||{})};cc[dk]=Math.max((cc[dk]||0)-undo.pts,0);return{...p,[undo.cat]:cc}});
+      setLifetime(p=>Math.max(p-undo.pts,0));
+    }
     if(undo.type==="task"){
       setTasks(p=>{
         const ct=[...(p[undo.cat]||[])];
@@ -581,7 +636,28 @@ export default function Fruitful() {
     const cat=cats.find(c=>c.id===id);
     const currentTasks = tasks[id]||[];
     const task = currentTasks[i];
+    const target = recTarget(task);
+    const currentCount = task.doneCount || 0;
     const prevSubStates = task?.subtasks ? task.subtasks.map(s=>s.done) : null;
+    
+    // For multi-completion recurring tasks, increment count
+    if (task.recurring && target > 1 && currentCount + 1 < target && !task.subtasks) {
+      // Partial completion — increment but don't mark done
+      setTasks(p=>{
+        const ct=[...(p[id]||[])];
+        const t={...ct[i]};
+        t.doneCount = (t.doneCount||0) + 1;
+        t.doneDate = activeDay();
+        ct[i]=t;
+        return{...p,[id]:ct};
+      });
+      const pts = addPts(id);
+      pushUndo({type:"partial",cat:id,idx:i,pts});
+      setToast(`${cat.emoji} +${pts} — ${currentCount+1}/${target} done! Keep going! ✨`);
+      return;
+    }
+    
+    // Full completion (non-recurring, single-completion, or final completion of multi)
     const remaining = task?.subtasks ? task.subtasks.filter(s=>!s.done).length : 0;
     const pointCount = task?.subtasks && task.subtasks.length>0 ? remaining : 1;
     
@@ -593,6 +669,7 @@ export default function Fruitful() {
       }
       t.done=true;
       t.doneDate=activeDay();
+      t.doneCount=target;
       ct[i]=t;
       return{...p,[id]:ct};
     });
